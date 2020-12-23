@@ -10,5 +10,5 @@ mirf uses terminal colors and will need to have `colorama` installed. You can in
 
 Then run mirf from the terminal:
 
-[![asciicast](https://asciinema.org/a/380370.png)](https://asciinema.org/a/380370)
+[![asciicast](https://asciinema.org/a/380843.png)](https://asciinema.org/a/380843)
 
