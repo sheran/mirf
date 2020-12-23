@@ -10,105 +10,96 @@
 # This tool will look through an SQLite Database and find any gaps in
 # either primary key based columns or autoincrement columns
 #
-import os
+
+
 import sys
-import sqlite3
 from colorama import Fore, Back, Style, init
 
-def find_gap(sequence):
-    indexes = set()
-    for idx, num in enumerate(sequence):
-        try:
-            old_num
-        except NameError:
-            old_num = num
-            continue
-        if num - old_num > 1:
-            indexes.add(idx)
-        old_num = num
-    return indexes
+from mdb import SqliteDB
 
-def read_db_tables_from(db_file):
-    tables = set()
-    if not os.path.exists(db_file):
-        raise NameError("Can't find specified database file")
-    conn = sqlite3.connect(f"file:{db_file}?mode=ro",uri=True)
-    c    = conn.cursor()
-    results = c.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    for result in results:
-        tables.add(result[0])
-    conn.close()
-    return tables
 
-def read_seq_from_table(db_file, table_name, field_name):
-    seq = set()
-    if not os.path.exists(db_file):
-        raise NameError("Can't find specified database file")
-    conn = sqlite3.connect(f"file:{db_file}?mode=ro",uri=True)
-    c    = conn.cursor()
-    results = c.execute(f"SELECT {field_name} FROM {table_name}")
-    for result in results:
-        seq.add(result[0])
-    conn.close()
-    return seq
-
-def parse_sqlite_seq(db_file):
-    tables = set()
-    if not os.path.exists(db_file):
-        raise NameError("Can't find specified database file")
-    conn = sqlite3.connect(f"file:{db_file}?mode=ro",uri=True)
-    c    = conn.cursor()
-
-    # Find all the table names in the sqlite_sequnece table
-    results = c.execute(f"SELECT name from sqlite_sequence")
-    for result in results:
-        tables.add(result[0])
-    
-    # Open these tables and find the columns that have AUTOINCREMENT
-    columns = set()
-    print(Style.DIM + "Searching for columns with AUTOINCREMENT in list of tables")
-    for table in tables:
-        
-        results = c.execute(f"SELECT sql from sqlite_master where name='{table}'")
-        for result in results:
-            
-            first_part = result[0].split(',')[0]
-            if "AUTOINCREMENT" in first_part:
-                columns.add((table,first_part.split('(')[1].split(' ')[0],first_part.split('(')[0].replace("CREATE TABLE ","").strip()))
-    
-    # Now check for missing sequences in the tables
-    for col in columns:
-        seq = read_seq_from_table(db_file,col[0],col[1])
-        gaps = find_gap(seq)
-        if len(gaps) > 0:
-            for gap in gaps:
-                print(Fore.GREEN + Style.BRIGHT + "[+] Found" + Style.RESET_ALL + f" gap in Row {gap+1} in '{col[0]}'")
-                print(f"-- SQL Query that shows gap: SELECT * FROM {col[0]} where {col[1]} in ({gap},{gap+1},{gap+2});")
-        else:
-            print(Style.DIM + f"No gaps found in '{col[0]}'")
-        
-    conn.close()
-            
-# First look for the 'sqlite_sequence' table. If it exists then do auto
-# The 'sqlite_sequence' table signifies that there are columns with 
-# AUTOINCREMENT specified.
-#
-# Then read the 'sqlite_sequence' table to determine the columns to lookup
 
 init(autoreset=True)
-db_name = input("Enter the full path to the SQLite DB file you want to analyze: [e.g. data/CB_CallHistoryDB/sms.db]  ")
+# Check if command line arguments are given
+if len(sys.argv) < 2:
+    print(Style.BRIGHT + Fore.RED + "Missing DB file name, please provide a "\
+        "filename")
+    sys.exit(1)
 
+
+# Check if the provided arg is a file and is an SQLite DB
+db_file = sys.argv[1]
+db = SqliteDB(db_file)
 try:
-    tables = read_db_tables_from(db_name)
-except NameError as e:
+    db.open()
+except Exception as e:
     print(e)
     sys.exit(1)
 
-if tables is not None:
-    print(Style.BRIGHT + f"Processing file: {db_name}")
-    if 'sqlite_sequence' in tables:
-        print(Fore.GREEN + Style.BRIGHT + "[+] Found " + Style.RESET_ALL + "'sqlite_sequence' table, parsing")
-        parse_sqlite_seq(db_name)
-    else:
-        print("No 'sqlite_sequence' table finding PRIMARY KEY tables")
+if not db.isSQLite3():
+    print(Style.BRIGHT + Fore.RED + f"File {db_file} is not an SQLite DB")
+    sys.exit(1)
+
+# Check if file is an iOS SMS DB
+if db.isSMSDb():
+    print('m')
+else:
+    print("File does not appear to be an iOS SMS Database")
+
+# Check if file is an iOS Call History DB
+if db.isCHDb():
+    print('n')
+else:
+    print("File does not appear to be an iOS Call History Database")
+
+# Start Guided mode
+# First gather the following data:
+# 1) Name of table to check for missing rows
+# 2) Name of field in the table from 1 that contains the row count
+# 3) [Optional] A table that contains the maximum row count at present
+
+print("Starting guided mode:")
+
+# Get all tables in db
+tables = db.readAllTables()
+for table in tables:
+    print(f"[-] {table}")
+
+table = input(Style.BRIGHT + "Which of the above tables do you want to " \
+    "analyze for missing rows? ")
+
+if table not in tables:
+    print(Style.BRIGHT + Fore.RED + "Table name selected isn't in DB")
+    db.close()
+    sys.exit(1)
+
+print(Style.RESET_ALL)
+cols = db.getColNames(table)
+for col in cols:
+    print(f"[-] {col}")
+
+col = input(Style.BRIGHT + "Enter a column to analyze ")
+if col not in cols:
+    print(Style.BRIGHT + Fore.RED + "Column name selected isn't in table")
+    db.close()
+    sys.exit(1)
+
+print(Style.RESET_ALL)
+
+if db.getColType(table, col) != "INTEGER":
+    print(Style.BRIGHT + Fore.RED + "The column selected is not an INTEGER so we cannot analyze")
+    db.close()
+    sys.exit(1)
+
+gaps = db.findGaps(table,col)
+if len(gaps) == 0:
+    print(f"No missing entries in the {col} column from the {table} table")
+else:
+    print(f"Found the following gaps for the {col} column:")
+    print(f"Col"+ (len(col)-2) * " " + "ID")
+    for gap in gaps:
+        print(f"{col} {gap}")
+        
+    
+db.close()
 

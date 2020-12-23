@@ -1,0 +1,4 @@
+__pycache__/
+CallHistory.storedata*
+b.db*
+sms.db*
