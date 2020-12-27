@@ -1,6 +1,4 @@
 __pycache__/
 CallHistory.storedata*
-b.db*
-s.db*
-sms.db*
+*.db*
 .python-version
