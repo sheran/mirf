@@ -1,4 +1,5 @@
 import sqlite3
+import time
 import sys
 from colorama import Fore, Back, Style, init
 
@@ -13,7 +14,7 @@ class SqliteDB:
 
         if not isfile(self.filename):
             return False
-        if getsize(self.filename) < 100: # SQLite database file header is 100 bytes
+        if getsize(self.filename) < 100: # SQLite DB file header is 100 bytes
             return False
 
         with open(self.filename, 'rb') as fd:
@@ -118,16 +119,67 @@ class SqliteDB:
             old_num = num[0]
         return indexes
 
-    # def parseIosSMSDB(self):
-    #     # This is an iOS SMS Database
-    #     # To process this we have to:
-    #     #
-    #     # Look in the "sqlite_sequence" table to pull out the table names
-    #     # and max row ids
-    #     #
-    #     # 
-    #     c = self.conn.cursor()
-    #     ss_tables = c.execute("")
+    def parseIosSMSDB(self):
+        # This is an iOS SMS Database
+        # To process this we have to:
+        #
+        # Look in the "sqlite_sequence" table to pull out the table names
+        # and max row ids
+        # 
+        print("Parsing iOS SMS DB file")
+        c = self.conn.cursor()
+        # msg_tbl = c.execute("select rowid, date_delivered, date_read, text")
+        c.execute("select max(rowid) from message")
+        max_rowid = c.fetchone()
+        c.execute("select seq from sqlite_sequence where name='message'")
+        num_rows = c.fetchone()
+        num_deleted = num_rows[0] - max_rowid[0]
+        print(f"Latest Row ID: {num_rows[0]}")
+        print(f"Number of Rows found: {max_rowid[0]}")
+        deleted_rows = set()
+        for r in range(num_deleted):
+            deleted_rows.add(max_rowid[0] + r + 1)
+        
+        # Now we check the rest of the message table for missing rows
+        gaps = self.findGaps('message','rowid')
+        if len(gaps) > 0:
+            for gap in gaps:
+                deleted_rows.add(gap)
+        
+        # See if we have gaps or missing rows
+        if len(deleted_rows) > 0:
+            print(sorted(deleted_rows))
+        else:
+            print("No missing records found")    
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        # if num_deleted  > 0:
+        #     # The last (num_rows[0] - max_rowid[0]) rows of the message table 
+        #     # has been deleted
+        #     print(f"{num_deleted} row(s) have been deleted from the 'message'"\
+        #         " table")
+        #     # Find the timestamp of the last available row
+        #     c.execute(f"select rowid, date_delivered, date_read from message "\
+        #         f"where rowid={max_rowid[0]}")
+        #     t = c.fetchone()
+        #     # Mac Core Data time stamp is from year 1904 so we have to add 
+        #     # 978307200 seconds to it to bring it to the Unix epoch of 1970
+        #     dd = time.asctime(time.gmtime( (t[1] / 1000000000) + 978307200 )) \
+        #         if t[1] > 0 else "Not Set"
+        #     dr = time.asctime(time.gmtime( (t[2] / 1000000000) + 978307200 )) \
+        #         if t[2] > 0 else "Not Set"
+        
+        
+
+
 
 
     def close(self):

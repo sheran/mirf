@@ -42,15 +42,14 @@ if not db.isSQLite3():
 
 # Check if file is an iOS SMS DB
 if db.isSMSDb():
-    print('m')
-else:
-    print("File does not appear to be an iOS SMS Database")
-
-# Check if file is an iOS Call History DB
-if db.isCHDb():
+    db.parseIosSMSDB()
+    sys.exit(0)
+elif db.isCHDb():
     print('n')
+    sys.exit(0)
 else:
-    print("File does not appear to be an iOS Call History Database")
+    print("Starting guided mode:")
+
 
 # Start Guided mode
 # First gather the following data:
@@ -58,7 +57,7 @@ else:
 # 2) Name of field in the table from 1 that contains the row count
 # 3) [Optional] A table that contains the maximum row count at present
 
-print("Starting guided mode:")
+
 
 # Get all tables in db
 tables = db.readAllTables()
@@ -87,7 +86,8 @@ if col not in cols:
 print(Style.RESET_ALL)
 
 if db.getColType(table, col) != "INTEGER":
-    print(Style.BRIGHT + Fore.RED + "The column selected is not an INTEGER so we cannot analyze")
+    print(Style.BRIGHT + Fore.RED + "The column selected is not an INTEGER so "\
+        "we cannot analyze")
     db.close()
     sys.exit(1)
 
