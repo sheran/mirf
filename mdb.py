@@ -206,8 +206,8 @@ class SqliteDB:
     #Print out the active and missing rows
     def printGaps(self, flat_rows):
         # Print the table out
-        # Col size is: 10, 25, 25, 40 (truncate)
-        # hardcoded headers: ROWID, date_delivered, date_received, text
+        # Col size is: 10, 25, 40 (truncate)
+        # hardcoded headers: ROWID, date, text
         print(f"+{'':->10}+{'':->25}+{'':->40}+")
         # print headers
         print(f'|{"ROWID":>10}|{"date (UTC)":>25}|{"text":>40}|')
