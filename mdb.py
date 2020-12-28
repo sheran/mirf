@@ -210,7 +210,7 @@ class SqliteDB:
         # hardcoded headers: ROWID, date, text
         print(f"+{'':->10}+{'':->25}+{'':->40}+")
         # print headers
-        print(f'|{"ROWID":>10}|{"date (UTC)":>25}|{"text":>40}|')
+        print(f'|{"ROWID":>10}|{"date (UTC)":>25}|{"text (truncated)":>40}|')
         print(f"+{'':->10}+{'':->25}+{'':->40}+")
         # print the data rows 
         fl_rows = sorted(flat_rows)
