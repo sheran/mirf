@@ -108,14 +108,15 @@ class SqliteDB:
         c    = self.conn.cursor()
         c.execute(f"SELECT {col} from {table}")
         indexes = set()
+        ctr = 0
         for idx, num in enumerate(c.fetchall()):
             try:
                 old_num
             except NameError:
                 old_num = num[0]
-                continue
             if num[0] - old_num > 1:
-                indexes.add(idx+1)
+                ctr +=1
+                indexes.add(idx+ctr)
             old_num = num[0]
         return indexes
 
@@ -126,7 +127,7 @@ class SqliteDB:
         # Look in the "sqlite_sequence" table to pull out the table names
         # and max row ids
         # 
-        print("Parsing iOS SMS DB file")
+        print("[i] Parsing: " + Fore.GREEN +"iOS SMS DB file")
         c = self.conn.cursor()
         # msg_tbl = c.execute("select rowid, date_delivered, date_read, text")
         c.execute("select max(rowid) from message")
@@ -134,8 +135,8 @@ class SqliteDB:
         c.execute("select seq from sqlite_sequence where name='message'")
         num_rows = c.fetchone()
         num_deleted = num_rows[0] - max_rowid[0]
-        print(f"Latest Row ID in 'message' table: {num_rows[0]}")
-        print(f"Number of Rows found in 'message' table: {max_rowid[0]}")
+        print(f"[i] Latest Row ID in 'message' table: {num_rows[0]}")
+        print(f"[i] Number of Rows found in 'message' table: {max_rowid[0]}")
         deleted_rows = set()
         for r in range(num_deleted):
             deleted_rows.add(max_rowid[0] + r + 1)
@@ -143,9 +144,11 @@ class SqliteDB:
         # Now we check the rest of the message table for missing rows
         gaps = self.findGaps('message','ROWID')
         if len(gaps) > 0:
+            print(f"[i] Found missing records: "+ Fore.GREEN + f"{len(gaps)}")
             for gap in gaps:
                 deleted_rows.add(gap)
         
+
         # See if we have gaps or missing rows
         if len(deleted_rows) > 0:
             # Build the gaps section
@@ -176,22 +179,28 @@ class SqliteDB:
             selstr += ")"
 
             # fetch data from active rows
-            c.execute(f"select ROWID, date_delivered, date_read, text from"\
+            c.execute(f"select ROWID, date, service, text from"\
                 f" message where ROWID in {selstr}")
             flat_rows = set()
             for row in c.fetchall():
                 dd = time.asctime(time.gmtime( (row[1] / 1000000000) + \
                     978307200 )) if row[1] > 0 else "Not Set"
-                dr = time.asctime(time.gmtime( (row[2] / 1000000000) + \
-                    978307200 )) if row[2] > 0 else "Not Set"
-                flat_rows.add((row[0],dd,dr,row[3].replace("\n","")))
+                msg = row[3]
+                if row[2] == "iMessage":
+                    msg = "iMessage text"
+                if not msg.isascii():
+                    msg = ascii(msg).replace("'","")
+                else:
+                    msg = repr(msg).replace("'","")
+                
+                flat_rows.add((row[0],dd,msg))
             for row in deleted_rows:
-                flat_rows.add((row,"-- missing --","-- missing --",\
+                flat_rows.add((row,"-- missing --",\
                     "-- missing --"))
             self.printGaps(flat_rows)
             
         else:
-            print("No missing records found in 'message' table")
+            print("[i] No missing records found in 'message' table")
         
 
     #Print out the active and missing rows
@@ -199,12 +208,11 @@ class SqliteDB:
         # Print the table out
         # Col size is: 10, 25, 25, 40 (truncate)
         # hardcoded headers: ROWID, date_delivered, date_received, text
-        print(f"+{'':->10}+{'':->25}+{'':->25}+{'':->40}+")
+        print(f"+{'':->10}+{'':->25}+{'':->40}+")
         # print headers
-        print(f'|{"ROWID":>10}|{"date_delivered":>25}|{"date_read":>25}|'\
-            f'{"text":>40}|')
-        print(f"+{'':->10}+{'':->25}+{'':->25}+{'':->40}+")
-        # print the data rows
+        print(f'|{"ROWID":>10}|{"date (UTC)":>25}|{"text":>40}|')
+        print(f"+{'':->10}+{'':->25}+{'':->40}+")
+        # print the data rows 
         fl_rows = sorted(flat_rows)
 
         for row in fl_rows:
@@ -213,12 +221,14 @@ class SqliteDB:
             except NameError:
                 old_num = row[0]
             if row[0] - old_num > 1:
-                print(f'|{".":>10}|{".":>25}|{".":>25}|{".":>40.40}|')
-                print(f'|{".":>10}|{".":>25}|{".":>25}|{".":>40.40}|')
-                print(f'|{".":>10}|{".":>25}|{".":>25}|{".":>40.40}|')
-            print(f'|{row[0]:>10}|{row[1]:>25}|{row[2]:>25}|{row[3]:>40.40}|')
+                print(f'|{".":>10}|{".":>25}|{".":>40.40}|')
+                print(f'|{".":>10}|{".":>25}|{".":>40.40}|')
+                print(f'|{".":>10}|{".":>25}|{".":>40.40}|')
+            print(f'|{row[0]:>10}|{row[1]:>25}|{" "+row[2]:>40.40}|')
             old_num = row[0]
-        print(f"+{'':->10}+{'':->25}+{'':->25}+{'':->40}+")
+            
+        print(f"+{'':->10}+{'':->25}+{'':->40}+")
+        
         
     def close(self):
         self.conn.close()
