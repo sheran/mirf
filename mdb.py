@@ -136,7 +136,8 @@ class SqliteDB:
         num_rows = c.fetchone()
         num_deleted = num_rows[0] - max_rowid[0]
         print(f"[i] Latest Row ID in 'message' table: {num_rows[0]}")
-        print(f"[i] Rows found in 'message' table as reported by 'sqlite_sequence' table: {max_rowid[0]}")
+        print(f"[i] Rows found in 'message' table as reported by "\
+            f"'sqlite_sequence' table: {max_rowid[0]}")
         deleted_rows = set()
         for r in range(num_deleted):
             deleted_rows.add(max_rowid[0] + r + 1)
