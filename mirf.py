@@ -2,6 +2,10 @@
 #
 # mirf - A missing record finder for SQLite DBs
 #
+# Inspired by the Windows tool Missing Record Finder
+# Developed by Ian Whiffin (@blakdouble)
+# More great tools and research on his site: https://www.doubleblak.com/
+#
 # Conceptualized by - Shafik Punja (@qubytelogic)
 # Coded by - Sheran Gunasekera (@chopstick_)
 #

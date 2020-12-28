@@ -26,7 +26,7 @@ class SqliteDB:
         if not self.isSQLite3():
             raise sqlite3.DatabaseError("Not an SQLite DB")
         
-        self.conn = sqlite3.connect(f"file:{self.filename}?mode=ro", uri=True)
+        self.conn = sqlite3.connect(f"file:{self.filename}", uri=True)
         self.test()
     
     def test(self):
@@ -145,7 +145,8 @@ class SqliteDB:
         # Now we check the rest of the message table for missing rows
         gaps = self.findGaps('message','ROWID')
         if len(gaps) > 0:
-            print(f"[i] Found missing records: "+ Fore.GREEN + f"{len(gaps)}")
+            print(f"[i] Found missing records: "+ Fore.GREEN + f"{len(gaps)}" )
+            print(f"[i] Table below shows only some records for brevity:")
             for gap in gaps:
                 deleted_rows.add(gap)
         
@@ -198,21 +199,21 @@ class SqliteDB:
             for row in deleted_rows:
                 flat_rows.add((row,"-- missing --",\
                     "-- missing --"))
-            self.printGaps(flat_rows)
+            self.printGapsSms(flat_rows)
             
         else:
             print("[i] No missing records found in 'message' table")
         
 
     #Print out the active and missing rows
-    def printGaps(self, flat_rows):
+    def printGapsSms(self, flat_rows):
         # Print the table out
         # Col size is: 10, 25, 40 (truncate)
         # hardcoded headers: ROWID, date, text
-        print(f"+{'':->10}+{'':->25}+{'':->40}+")
+        print(f"    +{'':->10}+{'':->25}+{'':->40}+")
         # print headers
-        print(f'|{"ROWID":>10}|{"date (UTC)":>25}|{"text (truncated)":>40}|')
-        print(f"+{'':->10}+{'':->25}+{'':->40}+")
+        print(f'    |{"ROWID":>10}|{"date (UTC)":>25}|{"text (truncated)":>40}|')
+        print(f"    +{'':->10}+{'':->25}+{'':->40}+")
         # print the data rows 
         fl_rows = sorted(flat_rows)
 
@@ -222,13 +223,13 @@ class SqliteDB:
             except NameError:
                 old_num = row[0]
             if row[0] - old_num > 1:
-                print(f'|{".":>10}|{".":>25}|{".":>40.40}|')
-                print(f'|{".":>10}|{".":>25}|{".":>40.40}|')
-                print(f'|{".":>10}|{".":>25}|{".":>40.40}|')
-            print(f'|{row[0]:>10}|{row[1]:>25}|{" "+row[2]:>40.40}|')
+                print(f'    |{".":>10}|{".":>25}|{".":>40.40}|')
+                print(f'    |{".":>10}|{".":>25}|{".":>40.40}|')
+                print(f'    |{".":>10}|{".":>25}|{".":>40.40}|')
+            print(f'    |{row[0]:>10}|{row[1]:>25}|{" "+row[2]:>40.40}|')
             old_num = row[0]
             
-        print(f"+{'':->10}+{'':->25}+{'':->40}+")
+        print(f"    +{'':->10}+{'':->25}+{'':->40}+")
         
         
     def close(self):
