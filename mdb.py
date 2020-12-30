@@ -157,9 +157,11 @@ class SqliteDB:
         c.execute("select seq from sqlite_sequence where name='message'")
         num_rows = c.fetchone()
         num_deleted = num_rows[0] - max_rowid
-        print(f"{'[i] First Record ID:':<26} {min_rowid:>5}")
-        print(f"{'[i] Last Record ID:' :<26} {max_rowid:>5}")
-        print(f"{'[i] Total Records:' :<26} {total_rec:>5}")
+        print(f"{'[i] First Record ID:':<71} {min_rowid:>5}")
+        print(f"{'[i] Last Record ID:' :<71} {max_rowid:>5}")
+        print(f"{'[i] Last Record ID in message table according to sqlite_sequence table:':<71} {num_rows[0]:>5}")
+        print(f"{'[i] Total Records:' :<71} {total_rec:>5}")
+        
         deleted_rows = set()
         for r in range(num_deleted):
             deleted_rows.add(max_rowid + r + 1)
@@ -167,7 +169,7 @@ class SqliteDB:
         # Now we check the rest of the message table for missing rows
         gaps = self.findGaps('message','ROWID')
         if len(gaps) > 0:
-            print(f"{'[i] Missing Record Count:':<26} {len(gaps):>5}")
+            print(f"{'[i] Missing Record Count:':<71} {len(gaps):>5}")
             print(f"[i] Missing Records List:\n")
             
             for gap in gaps:
