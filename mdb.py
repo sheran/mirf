@@ -110,6 +110,7 @@ class SqliteDB:
         indexes = set()
         ctr = 0
         recs = [r[0] for r in c.fetchall()]
+        #print(self.missing_elements(recs))
         return self.missing_elements(recs)
 
     def missing_elements(self, L):
@@ -120,10 +121,22 @@ class SqliteDB:
         # This is an iOS CallHistory Database
         # To process this we have to:
         #
-        # Look in the "sqlite_sequence" table to pull out the table names
-        # and max row ids
+        # Look in the "Z_PRIMARYKEY" table to pull out the number of records
         #
-        print()
+        print("[i] Parsing: " + Fore.GREEN +"iOS CallHistory DB file")
+        c = self.conn.cursor()
+        c.execute("select Z_MAX from Z_PRIMARYKEY where Z_NAME='CallRecord'")
+        rows = c.fetchone()
+        c.execute("select Z_PK from ZCALLRECORD")
+        recs = c.fetchall()
+        r = [r[0] for r in recs]
+        missing = sorted(set(range(1, rows[0] + 1)).difference(r))
+        print(f"{'[i] First Record ID:':<26} {r[0]:>5}")
+        print(f"{'[i] Last Record ID:' :<26} {r[-1]:>5}")
+        c.execute('select count(*) from ZCALLRECORD')
+        total_recs = c.fetchone()[0]
+        print(f"{'[i] Total Records:' :<26} {total_recs:>5}")
+        
 
 
     def parseIosSMSDB(self):
@@ -133,7 +146,7 @@ class SqliteDB:
         # Look in the "sqlite_sequence" table to pull out the table names
         # and max row ids
         # 
-        print("[i] Parsing: " + Fore.GREEN +"iOS SMS DB file")
+        print("[i] Parsing: " + Fore.GREEN +"iOS SMS DB file 'message' table")
         c = self.conn.cursor()
         # msg_tbl = c.execute("select rowid, date_delivered, date_read, text")
         c.execute("select min(rowid),max(rowid),count(*) from message")
