@@ -109,16 +109,12 @@ class SqliteDB:
         c.execute(f"SELECT {col} from {table}")
         indexes = set()
         ctr = 0
-        for idx, num in enumerate(c.fetchall()):
-            try:
-                old_num
-            except NameError:
-                old_num = num[0]
-            if num[0] - old_num > 1:
-                ctr +=1
-                indexes.add(idx+ctr)
-            old_num = num[0]
-        return indexes
+        recs = [r[0] for r in c.fetchall()]
+        return self.missing_elements(recs)
+
+    def missing_elements(self, L):
+        start, end = L[0], L[-1]
+        return sorted(set(range(start, end + 1)).difference(L))
 
     def parseIosSMSDB(self):
         # This is an iOS SMS Database
@@ -130,23 +126,26 @@ class SqliteDB:
         print("[i] Parsing: " + Fore.GREEN +"iOS SMS DB file")
         c = self.conn.cursor()
         # msg_tbl = c.execute("select rowid, date_delivered, date_read, text")
-        c.execute("select max(rowid) from message")
-        max_rowid = c.fetchone()
+        c.execute("select min(rowid),max(rowid),count(*) from message")
+        rows = c.fetchone()
+        max_rowid = rows[1]
+        min_rowid = rows[0]
+        total_rec = rows[2]
         c.execute("select seq from sqlite_sequence where name='message'")
         num_rows = c.fetchone()
-        num_deleted = num_rows[0] - max_rowid[0]
-        print(f"[i] Latest Row ID in 'message' table: {num_rows[0]}")
-        print(f"[i] Rows found in 'message' table as reported by "\
-            f"'sqlite_sequence' table: {max_rowid[0]}")
+        num_deleted = num_rows[0] - max_rowid
+        print(f"{'[i] First Record ID:':<21} {min_rowid:>8}")
+        print(f"{'[i] Last Record ID:' :<21} {max_rowid:>8}")
+        print(f"{'[i] Total Records:' :<21} {total_rec:>8}")
         deleted_rows = set()
         for r in range(num_deleted):
-            deleted_rows.add(max_rowid[0] + r + 1)
+            deleted_rows.add(max_rowid + r + 1)
         
         # Now we check the rest of the message table for missing rows
         gaps = self.findGaps('message','ROWID')
         if len(gaps) > 0:
-            print(f"[i] Found missing records: "+ Fore.GREEN + f"{len(gaps)}" )
-            print(f"[i] Table below shows only some records for brevity:")
+            print(f"[i] Missing Records List:\n")
+            
             for gap in gaps:
                 deleted_rows.add(gap)
         
@@ -157,6 +156,7 @@ class SqliteDB:
             # Iterate over the deleted rows getting records before and
             # after the deleted row
             active_rows = set()
+            
             for row in sorted(deleted_rows):
                 row_before = row - 1
                 while row_before in deleted_rows:
@@ -181,56 +181,49 @@ class SqliteDB:
             selstr += ")"
 
             # fetch data from active rows
-            c.execute(f"select ROWID, date, service, text from"\
+            c.execute(f"select ROWID, date from"\
                 f" message where ROWID in {selstr}")
             flat_rows = set()
             for row in c.fetchall():
                 dd = time.asctime(time.gmtime( (row[1] / 1000000000) + \
                     978307200 )) if row[1] > 0 else "Not Set"
-                msg = row[3]
-                if row[2] == "iMessage":
-                    msg = "iMessage text"
-                if not msg.isascii():
-                    msg = ascii(msg).replace("'","")
-                else:
-                    msg = repr(msg).replace("'","")
                 
-                flat_rows.add((row[0],dd,msg))
+                flat_rows.add((row[0],dd))
             for row in deleted_rows:
-                flat_rows.add((row,"-- missing --",\
-                    "-- missing --"))
-            self.printGapsSms(flat_rows)
+                flat_rows.add((row,"missing"))
+            
+            
+            mrow = 0
+            start = False
+            end = False
+            result = []
+            line = ""
+            for row in sorted(flat_rows):
+                #print(row[0])
+                if row[1] != "missing" and not start:
+                    start = True
+                    line += f"between {row[1]} (UTC)"
+                if row[1] == "missing" and start and not end:
+                    mrow += 1
+                if row[1] != "missing" and start and mrow > 0:
+                    end = True
+                    start = False
+                if end:
+                    line = f"{mrow} record(s) missing " + line + \
+                        f" and {row[1]} (UTC)"
+                    result.append(line)
+                    line = ""
+                    mrow = 0
+                    end = False
+                
+            for i, res in enumerate(result):
+                print(f"{i+1}. {res}")
+
             
         else:
             print("[i] No missing records found in 'message' table")
         
 
-    #Print out the active and missing rows
-    def printGapsSms(self, flat_rows):
-        # Print the table out
-        # Col size is: 10, 25, 40 (truncate)
-        # hardcoded headers: ROWID, date, text
-        print(f"    +{'':->10}+{'':->25}+{'':->40}+")
-        # print headers
-        print(f'    |{"ROWID":>10}|{"date (UTC)":>25}|{"text (truncated)":>40}|')
-        print(f"    +{'':->10}+{'':->25}+{'':->40}+")
-        # print the data rows 
-        fl_rows = sorted(flat_rows)
-
-        for row in fl_rows:
-            try:
-                old_num
-            except NameError:
-                old_num = row[0]
-            if row[0] - old_num > 1:
-                print(f'    |{".":>10}|{".":>25}|{".":>40.40}|')
-                print(f'    |{".":>10}|{".":>25}|{".":>40.40}|')
-                print(f'    |{".":>10}|{".":>25}|{".":>40.40}|')
-            print(f'    |{row[0]:>10}|{row[1]:>25}|{" "+row[2]:>40.40}|')
-            old_num = row[0]
-            
-        print(f"    +{'':->10}+{'':->25}+{'':->40}+")
-        
         
     def close(self):
         self.conn.close()
