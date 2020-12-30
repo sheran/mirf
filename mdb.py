@@ -116,6 +116,16 @@ class SqliteDB:
         start, end = L[0], L[-1]
         return sorted(set(range(start, end + 1)).difference(L))
 
+    def parseIosCHDB(self):
+        # This is an iOS CallHistory Database
+        # To process this we have to:
+        #
+        # Look in the "sqlite_sequence" table to pull out the table names
+        # and max row ids
+        #
+        print()
+
+
     def parseIosSMSDB(self):
         # This is an iOS SMS Database
         # To process this we have to:
@@ -134,9 +144,9 @@ class SqliteDB:
         c.execute("select seq from sqlite_sequence where name='message'")
         num_rows = c.fetchone()
         num_deleted = num_rows[0] - max_rowid
-        print(f"{'[i] First Record ID:':<21} {min_rowid:>8}")
-        print(f"{'[i] Last Record ID:' :<21} {max_rowid:>8}")
-        print(f"{'[i] Total Records:' :<21} {total_rec:>8}")
+        print(f"{'[i] First Record ID:':<26} {min_rowid:>5}")
+        print(f"{'[i] Last Record ID:' :<26} {max_rowid:>5}")
+        print(f"{'[i] Total Records:' :<26} {total_rec:>5}")
         deleted_rows = set()
         for r in range(num_deleted):
             deleted_rows.add(max_rowid + r + 1)
@@ -144,6 +154,7 @@ class SqliteDB:
         # Now we check the rest of the message table for missing rows
         gaps = self.findGaps('message','ROWID')
         if len(gaps) > 0:
+            print(f"{'[i] Missing Record Count:':<26} {len(gaps):>5}")
             print(f"[i] Missing Records List:\n")
             
             for gap in gaps:
@@ -193,7 +204,7 @@ class SqliteDB:
                 flat_rows.add((row,"missing"))
             
             
-            mrow = 0
+            mrow = []
             start = False
             end = False
             result = []
@@ -204,16 +215,17 @@ class SqliteDB:
                     start = True
                     line += f"between {row[1]} (UTC)"
                 if row[1] == "missing" and start and not end:
-                    mrow += 1
-                if row[1] != "missing" and start and mrow > 0:
+                    mrow.append(row[0])
+                if row[1] != "missing" and start and len(mrow) > 0:
                     end = True
                     start = False
                 if end:
-                    line = f"{mrow} record(s) missing " + line + \
-                        f" and {row[1]} (UTC)"
+                    line = f"{len(mrow)} record(s) missing " + line + \
+                        f" and {row[1]} (UTC). Missing record numbers are: " \
+                        f"{mrow}"
                     result.append(line)
                     line = ""
-                    mrow = 0
+                    mrow = []
                     end = False
                 
             for i, res in enumerate(result):
