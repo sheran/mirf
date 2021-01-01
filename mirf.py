@@ -49,7 +49,7 @@ if db.isSMSDb():
     db.parseIosSMSDB()
     sys.exit(0)
 elif db.isCHDb():
-    print('n')
+    db.parseIosCHDB()
     sys.exit(0)
 else:
     print("Starting guided mode:")

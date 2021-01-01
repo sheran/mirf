@@ -123,21 +123,117 @@ class SqliteDB:
         #
         # Look in the "Z_PRIMARYKEY" table to pull out the number of records
         #
-        print("[i] Parsing: " + Fore.GREEN +"iOS CallHistory DB file")
+        print("[i] Parsing: " + Fore.GREEN +"iOS CallHistory DB file "\
+            "'ZCALLRECORD' table")
         c = self.conn.cursor()
         c.execute("select Z_MAX from Z_PRIMARYKEY where Z_NAME='CallRecord'")
         rows = c.fetchone()
         c.execute("select Z_PK from ZCALLRECORD")
         recs = c.fetchall()
-        r = [r[0] for r in recs]
+        
+        r = sorted([r[0] for r in recs])
         missing = sorted(set(range(1, rows[0] + 1)).difference(r))
-        print(f"{'[i] First Record ID:':<26} {r[0]:>5}")
-        print(f"{'[i] Last Record ID:' :<26} {r[-1]:>5}")
+        print(f"{'[i] First Record ID:':<72} {r[0]:>5}")
+        print(f"{'[i] Last Record ID:' :<72} {r[-1]:>5}")
+        print(f"{'[i] Last Record ID in ZCALLRECORD table according to Z_PRIMARYKEY table:':<72} {rows[0]:>5}")
         c.execute('select count(*) from ZCALLRECORD')
         total_recs = c.fetchone()[0]
-        print(f"{'[i] Total Records:' :<26} {total_recs:>5}")
+        print(f"{'[i] Total Records:' :<72} {total_recs:>5}")
+        print(f"{'[i] Missing Record Count: ':<72} {len(missing):>5}")
+        print(f"\n[i] Missing Records List:\n")
         
+        if len(missing) > 0:
+            # Build the gaps section
+            # Iterate over the deleted rows getting records before and
+            # after the deleted row
+            active_rows = set()
+            
+            for row in sorted(missing):
+                row_before = row - 1
+                while row_before in missing:
+                    row_before -= 1
+                if row_before <= 0:
+                    row_before = None
+                row_after  = row + 1
+                while row_after in missing:
+                    row_after += 1
+                if row_after > r[-1]:
+                    row_after = None
+                if row_before is not None:
+                    active_rows.add(row_before)
+                if row_after is not None:
+                    active_rows.add(row_after)
+            
+            selstr = "("
+            for k,v in enumerate(active_rows):
+                selstr += f"'{v}'"
+                if k < len(active_rows) - 1:
+                    selstr += ", "
+            selstr += ")"
+            # fetch data from active rows
+            c.execute(f"select Z_PK, CAST(ZDATE as INTEGER) from"\
+                f" ZCALLRECORD where Z_PK in {selstr}")
+            flat_rows = set()
+            for row in c.fetchall():
+                dd = time.asctime(time.gmtime( (row[1] ) + \
+                    978307200 )) if row[1] > 0 else "Not Set"
+                
+                flat_rows.add((row[0],dd))
+            for row in missing:
+                flat_rows.add((row,-1))
+            
+            
 
+            groups = self.split(flat_rows,-1)
+            results = []
+            for id,group in groups.items():
+                #if first and last element, then treat differently
+                ct = [x[1] for x in group].count(-1)
+                if id == 0:
+                    # this is the first element
+                    if group[0][1] != -1 and group[-1][1] != -1:
+                        results.append(f"{ct:>3} deleted record(s) between "\
+                            f"{group[0][1]} and {group[-1][1]}. Missing records are: {[x[0] for x in group][1:-1]}")
+                    if group[0][1] == -1 and group[-1][1] != -1:
+                        results.append(f"{ct:>3} deleted record(s) before "\
+                            f"{group[-1][1]}. Missing records are: {[x[0] for x in group][:-1]}")
+                if id > 0 and id < len(groups) - 1:
+                    pri = groups[id-1][-1][1]
+                    cur = group[0][1]
+                    if cur == -1:
+                        results.append(f"{ct:>3} deleted record(s) between "\
+                            f"{pri} and {group[-1][1]}. Missing records are: {[x[0] for x in group][:-1]}")
+                if id == len(groups) - 1:
+                    # this is the last element
+                    if group[0][1] != -1 and group[-1][1] == -1:
+                        results.append(f"{ct:>3} deleted record(s) after "\
+                            f"{group[0][1]}. Missing records are: {[x[0] for x in group][1:]}")
+                    if group[0][1] != -1 and group[-1][1] != -1:
+                        results.append(f"{ct:>3} deleted record(s) between "\
+                            f"{group[0][1]} {group[-1][1]}. Missing records are: {[x[0] for x in group][1:-1]}")
+            for id,res in enumerate(results):
+                print(f"{id+1}. {res}")
+                
+        else:
+            print("[i] No missing records found in 'ZCALLRECORD' table")
+
+    def split(self,missing,delim):
+        groups = {}
+        ctr = 0
+        n = []
+        for k,i in enumerate(sorted(missing)):
+            if i[1] != delim:
+                # close prior group
+                n.append(i)
+                groups[ctr] = n
+                # open new group
+                n = []
+                ctr += 1
+                continue
+            n.append(i)
+        if len(n) > 0:
+            groups[ctr - 1].extend(n)
+        return groups
 
     def parseIosSMSDB(self):
         # This is an iOS SMS Database
@@ -170,7 +266,7 @@ class SqliteDB:
         gaps = self.findGaps('message','ROWID')
         if len(gaps) > 0:
             print(f"{'[i] Missing Record Count:':<71} {len(gaps):>5}")
-            print(f"[i] Missing Records List:\n")
+            print(f"\n[i] Missing Records List:\n")
             
             for gap in gaps:
                 deleted_rows.add(gap)
@@ -225,7 +321,6 @@ class SqliteDB:
             result = []
             line = ""
             for row in sorted(flat_rows):
-                #print(row[0])
                 if row[1] != "missing" and not start:
                     start = True
                     line += f"between {row[1]} (UTC)"
