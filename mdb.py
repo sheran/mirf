@@ -338,8 +338,8 @@ class SqliteDB:
                     start = False
                 if end:
                     line = f"{len(mrow)} record(s) missing " + line + \
-                        f" and {row[1]} (UTC). Missing record numbers are: " \
-                        f"{mrow}"
+                        f" and {row[1]} (UTC). \n     Missing record numbers are: " \
+                        f"{mrow}\n"
                     result.append(line)
                     line = ""
                     mrow = []
