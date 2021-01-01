@@ -194,29 +194,30 @@ class SqliteDB:
                     # this is the first element
                     if group[0][1] != -1 and group[-1][1] != -1:
                         results.append(f"{ct:>3} deleted record(s) between "\
-                            f"{group[0][1]} and {group[-1][1]}. Missing records are: {[x[0] for x in group][1:-1]}")
+                            f"{group[0][1]} and {group[-1][1]}. \n       Missing records are: {[x[0] for x in group][1:-1]}\n")
                     if group[0][1] == -1 and group[-1][1] != -1:
                         results.append(f"{ct:>3} deleted record(s) before "\
-                            f"{group[-1][1]}. Missing records are: {[x[0] for x in group][:-1]}")
+                            f"{group[-1][1]}. \n       Missing records are: {[x[0] for x in group][:-1]}\n")
+                        
                 if id > 0 and id < len(groups) - 1:
                     pri = groups[id-1][-1][1]
                     cur = group[0][1]
                     if cur == -1:
                         results.append(f"{ct:>3} deleted record(s) between "\
-                            f"{pri} and {group[-1][1]}. Missing records are: {[x[0] for x in group][:-1]}")
+                            f"{pri} and {group[-1][1]}. \n       Missing records are: {[x[0] for x in group][:-1]}\n")
                 if id == len(groups) - 1:
                     # this is the last element
                     if group[0][1] != -1 and group[-1][1] == -1:
                         results.append(f"{ct:>3} deleted record(s) after "\
-                            f"{group[0][1]}. Missing records are: {[x[0] for x in group][1:]}")
+                            f"{group[0][1]}. \n       Missing records are: {[x[0] for x in group][1:]}\n")
                     if group[0][1] != -1 and group[-1][1] != -1:
                         results.append(f"{ct:>3} deleted record(s) between "\
-                            f"{group[0][1]} {group[-1][1]}. Missing records are: {[x[0] for x in group][1:-1]}")
+                            f"{group[0][1]} {group[-1][1]}. \n       Missing records are: {[x[0] for x in group][1:-1]}\n")
                     pri = groups[id-1][-1][1]
                     cur = group[0][1]
                     if cur == -1:
                         results.append(f"{ct:>3} deleted record(s) between "\
-                            f"{pri} and {group[-1][1]}. Missing records are: {[x[0] for x in group][:-1]}")
+                            f"{pri} and {group[-1][1]}. \n       Missing records are: {[x[0] for x in group][:-1]}\n")
             for id,res in enumerate(results):
                 print(f"{id+1}. {res}")
                 
